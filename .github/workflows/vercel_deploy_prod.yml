@@ -1,0 +1,73 @@
+# Workflow 名称 - 标识这个 workflow 是在站点仓库里运行的
+name: Vercel Production Deployment (Site Repo Flow)
+
+# 定义一些环境变量，从 GitHub Secrets 中获取 Vercel 的项目和组织 ID
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  # 如果你的 Hexo 站点在仓库的子目录中，可以在这里定义路径
+  # HEXO_SITE_DIR: your-hexo-site-folder # 例如 'blog' 如果站点在仓库的 /blog 目录下
+
+# 定义触发 workflow 的事件
+on:
+  workflow_dispatch:
+  # 当推送到这个仓库 (redefine-demo) 的 main 分支时触发
+  push:
+    branches:
+      - main
+  # 如果需要 PR 预览部署，可以加上 pull_request 事件并相应配置部署步骤
+
+jobs:
+  production-deployment:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 步骤 1: Checkout 这个仓库的代码 (redefine-demo)
+      - name: Checkout site repository
+        uses: actions/checkout@v4
+        # 如果你的 Hexo 站点不在仓库根目录，需要在这里指定 path
+        # with:
+        #   path: ${{ env.HEXO_SITE_DIR }} # 使用上面定义的环境变量
+
+      # --- 以下步骤在 checkout 出来的站点仓库目录中执行 ---
+
+      # 步骤 2: 设置 Node.js 环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x' # 根据你的项目需求设置
+
+      # 步骤 3: 安装站点依赖 (包括 hexo 和主题，如果主题是 npm 依赖)
+      - name: Install site dependencies
+        run: npm install
+        # 如果站点不在仓库根目录，需要 cd 到站点目录，或者添加 working-directory 参数
+        # working-directory: ${{ env.HEXO_SITE_DIR }}
+
+      # 步骤 4: 安装 Vercel CLI (全局安装)
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # 步骤 5: 拉取 Vercel 项目信息
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        # 如果站点不在仓库根目录，添加 working-directory 参数
+        # working-directory: ${{ env.HEXO_SITE_DIR }}
+
+      # 步骤 6: 使用 Vercel CLI 构建项目 (.vercel/output)
+      # Vercel CLI 会检测是 Hexo 项目，自动运行 generate 并处理输出到 .vercel/output
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        # 如果站点不在仓库根目录，添加 working-directory 参数
+        # working-directory: ${{ env.HEXO_SITE_DIR }}
+
+      # 步骤 7: 部署构建好的项目 (.vercel/output) 到 Vercel
+      - name: Deploy Project Artifacts to Vercel
+        run: |
+          # --prebuilt 表示部署预构建的文件
+          # --prod 部署到生产环境
+          # token 需要用于身份验证
+          # 移除 --org, --project, --scope 参数，因为 vercel pull 已经建立了链接
+          vercel deploy --prebuilt --prod \
+            --token=${{ secrets.VERCEL_TOKEN }}
+        # 如果站点不在仓库根目录，添加 working-directory 参数
+        # working-directory: ${{ env.HEXO_SITE_DIR }}

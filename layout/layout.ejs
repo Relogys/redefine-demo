@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="<%= config.language %>">
+<%- partial('components/header/head') %>
+
+<body>
+	<%- body %>
+	<%- partial('components/scripts') %>
+	<% if (theme.plugins.aplayer.enable) { %>
+	<%- partial('components/plugins/aplayer') %>
+	<% } %>
+    <script>
+      window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
+</body>
+
+</html>
